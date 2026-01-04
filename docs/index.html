@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScreenFix - Screenshot Tasks for Claude Code</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+        .hero {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+        .hero p {
+            font-size: 1.3rem;
+            opacity: 0.9;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .install-box {
+            background: #1a1a2e;
+            color: #0f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 1.1rem;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .install-box code {
+            color: #0f0;
+        }
+        h2 {
+            color: #667eea;
+            margin: 30px 0 15px;
+        }
+        .steps {
+            list-style: none;
+            counter-reset: step;
+        }
+        .steps li {
+            padding: 15px 0 15px 50px;
+            position: relative;
+            border-bottom: 1px solid #eee;
+        }
+        .steps li:last-child {
+            border-bottom: none;
+        }
+        .steps li::before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 12px;
+            width: 32px;
+            height: 32px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .steps li strong {
+            color: #333;
+        }
+        .commands {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .commands code {
+            display: block;
+            padding: 8px 0;
+            color: #667eea;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .flow {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9rem;
+            color: #666;
+            margin: 20px 0;
+        }
+        .cta {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .cta a {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .cta a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .footer {
+            text-align: center;
+            color: white;
+            opacity: 0.8;
+            margin-top: 40px;
+            font-size: 0.9rem;
+        }
+        .footer a {
+            color: white;
+        }
+        kbd {
+            background: #eee;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>ScreenFix</h1>
+            <p>Capture screenshots and create tasks for Claude Code with a single hotkey</p>
+        </div>
+
+        <div class="card">
+            <h2>Install</h2>
+            <div class="install-box">
+                <code>npx create-screenfix</code>
+            </div>
+
+            <h2>How It Works</h2>
+            <ol class="steps">
+                <li><strong>Start the daemon</strong> - Run <code>/screenfix-start</code> in Claude Code</li>
+                <li><strong>Capture</strong> - Press <kbd>Cmd</kbd>+<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd> and select an area</li>
+                <li><strong>Annotate</strong> - Add instructions in the popup and click Save</li>
+                <li><strong>Execute</strong> - Run <code>/screenfix-tasks-yolo</code> to let Claude fix everything</li>
+            </ol>
+
+            <h2>Commands</h2>
+            <div class="commands">
+                <code>/screenfix-start</code> - Start the daemon
+                <code>/screenfix-stop</code> - Stop the daemon
+                <code>/screenfix-status</code> - Check status
+                <code>/screenfix-list-tasks</code> - View all tasks
+                <code>/screenfix-tasks-next</code> - Execute next task
+                <code>/screenfix-tasks-yolo</code> - Execute all tasks
+            </div>
+
+            <div class="flow">
+                Cmd+Ctrl+Shift+4 &rarr; Clipboard &rarr; Daemon &rarr; Annotation &rarr; Claude executes
+            </div>
+
+            <div class="cta">
+                <a href="https://github.com/sukhdeepbangar/screenfix">View on GitHub</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>macOS only &bull; Requires Python 3.10+ &bull; Works with <a href="https://claude.ai/code">Claude Code</a></p>
+        </div>
+    </div>
+</body>
+</html>
