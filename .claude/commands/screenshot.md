@@ -1,5 +1,5 @@
 ---
-allowed-tools: mcp__screenfix__get_last_screenshot, mcp__screenfix__list_screenshots, mcp__screenfix__read_screenshot
+allowed-tools: mcp__screenfix__get_last_screenshot, mcp__screenfix__get_tasks
 description: Get the last screenshot and analyze it
 ---
 

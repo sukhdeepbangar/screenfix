@@ -1,8 +1,4 @@
-"""MCP server implementation for ScreenFix.
-
-This MCP server communicates with the standalone daemon via state files.
-Run the daemon separately with: python -m screenfix.daemon
-"""
+"""MCP server for ScreenFix."""
 
 import asyncio
 import base64
@@ -16,18 +12,12 @@ from typing import Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import (
-    Tool,
-    TextContent,
-    ImageContent,
-)
+from mcp.types import Tool, TextContent, ImageContent
 
 from .config import config
-from .capture import get_screenshots, get_last_screenshot
 from .task_tracker import get_tasks, get_pending_tasks, mark_task_complete
 
 
-# State file location (shared with daemon)
 STATE_FILE = Path.home() / ".config" / "screenfix" / "state.json"
 
 
@@ -40,7 +30,6 @@ def get_daemon_state() -> dict:
         with open(STATE_FILE, "r") as f:
             state = json.load(f)
 
-        # Check if daemon is actually running
         pid = state.get("pid")
         if pid:
             try:
@@ -56,6 +45,30 @@ def get_daemon_state() -> dict:
         return {"running": False, "listening": False}
 
 
+def get_screenshots() -> list[dict]:
+    """Get list of screenshots."""
+    save_dir = Path(config.save_directory)
+    if not save_dir.exists():
+        return []
+
+    screenshots = []
+    for f in save_dir.glob("*.png"):
+        screenshots.append({
+            "path": str(f),
+            "filename": f.name,
+            "modified": f.stat().st_mtime,
+        })
+
+    screenshots.sort(key=lambda x: x["modified"], reverse=True)
+    return screenshots
+
+
+def get_last_screenshot() -> dict | None:
+    """Get the most recent screenshot."""
+    screenshots = get_screenshots()
+    return screenshots[0] if screenshots else None
+
+
 def start_daemon() -> tuple[bool, str]:
     """Start the daemon as a background process."""
     state = get_daemon_state()
@@ -63,33 +76,26 @@ def start_daemon() -> tuple[bool, str]:
         return True, "Daemon is already running"
 
     try:
-        # Create log directory
         log_dir = Path.home() / ".config" / "screenfix"
         log_dir.mkdir(parents=True, exist_ok=True)
         log_file = log_dir / "daemon.log"
 
-        # Start daemon as a background subprocess
-        # Run from current working directory for project-relative paths
-        cwd = os.getcwd()
-
         with open(log_file, "a") as log:
-            process = subprocess.Popen(
+            subprocess.Popen(
                 [sys.executable, "-m", "screenfix.daemon"],
-                cwd=cwd,
+                cwd=os.getcwd(),
                 stdout=log,
                 stderr=log,
-                start_new_session=True,  # Detach from parent process
+                start_new_session=True,
             )
 
-        # Wait briefly for daemon to initialize
         time.sleep(0.5)
 
-        # Check if it started successfully
         new_state = get_daemon_state()
         if new_state.get("running"):
-            return True, f"Daemon started as background process (PID: {new_state.get('pid')}). Logs: {log_file}"
+            return True, f"Daemon started (PID: {new_state.get('pid')}). Use Cmd+Ctrl+Shift+4 to capture."
         else:
-            return True, f"Daemon starting... Check logs at {log_file} if hotkey doesn't work."
+            return True, f"Daemon starting... Check logs at {log_file}"
 
     except Exception as e:
         return False, f"Failed to start daemon: {e}"
@@ -104,7 +110,7 @@ def stop_daemon() -> tuple[bool, str]:
     pid = state.get("pid")
     if pid:
         try:
-            os.kill(pid, 15)  # SIGTERM
+            os.kill(pid, 15)
             return True, "Daemon stopped"
         except OSError as e:
             return False, f"Failed to stop daemon: {e}"
@@ -113,49 +119,36 @@ def stop_daemon() -> tuple[bool, str]:
 
 
 def create_server() -> Server:
-    """Create and configure the MCP server."""
+    """Create the MCP server."""
     server = Server("screenfix")
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
-        """List available tools."""
         return [
             Tool(
                 name="start_daemon",
-                description="Start the ScreenFix daemon for hotkey listening (Ctrl+Option+S). Runs as a background process.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {},
-                    "required": [],
-                },
+                description="Start ScreenFix daemon. Use Cmd+Ctrl+Shift+4 to capture screenshots instantly.",
+                inputSchema={"type": "object", "properties": {}, "required": []},
             ),
             Tool(
                 name="stop_daemon",
                 description="Stop the ScreenFix daemon",
-                inputSchema={
-                    "type": "object",
-                    "properties": {},
-                    "required": [],
-                },
+                inputSchema={"type": "object", "properties": {}, "required": []},
             ),
             Tool(
                 name="get_status",
-                description="Get the current status of ScreenFix (daemon running, screenshots count, pending tasks)",
-                inputSchema={
-                    "type": "object",
-                    "properties": {},
-                    "required": [],
-                },
+                description="Get ScreenFix status",
+                inputSchema={"type": "object", "properties": {}, "required": []},
             ),
             Tool(
                 name="get_last_screenshot",
-                description="Get the most recent screenshot with its image and any related task",
+                description="Get the most recent screenshot with its image and related task",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "include_image": {
                             "type": "boolean",
-                            "description": "Whether to include the image data",
+                            "description": "Include image data",
                             "default": True,
                         }
                     },
@@ -164,58 +157,44 @@ def create_server() -> Server:
             ),
             Tool(
                 name="list_screenshots",
-                description="List all screenshots in the save directory",
+                description="List all screenshots",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "limit": {
-                            "type": "integer",
-                            "description": "Maximum number of screenshots to return",
-                            "default": 10,
-                        }
+                        "limit": {"type": "integer", "default": 10}
                     },
                     "required": [],
                 },
             ),
             Tool(
                 name="get_tasks",
-                description="Get all tasks from tasks.md",
+                description="Get tasks from tasks.md",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "pending_only": {
-                            "type": "boolean",
-                            "description": "Only return incomplete tasks",
-                            "default": False,
-                        }
+                        "pending_only": {"type": "boolean", "default": False}
                     },
                     "required": [],
                 },
             ),
             Tool(
                 name="complete_task",
-                description="Mark a task as complete in tasks.md",
+                description="Mark a task as complete",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "task_text": {
-                            "type": "string",
-                            "description": "The text of the task to mark complete",
-                        }
+                        "task_text": {"type": "string", "description": "Task text to mark complete"}
                     },
                     "required": ["task_text"],
                 },
             ),
             Tool(
                 name="read_screenshot",
-                description="Read a specific screenshot by path and return its image",
+                description="Read a specific screenshot by path",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": "Path to the screenshot file",
-                        }
+                        "path": {"type": "string", "description": "Path to screenshot"}
                     },
                     "required": ["path"],
                 },
@@ -224,7 +203,6 @@ def create_server() -> Server:
 
     @server.call_tool()
     async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent | ImageContent]:
-        """Handle tool calls."""
 
         if name == "start_daemon":
             success, message = start_daemon()
@@ -239,19 +217,13 @@ def create_server() -> Server:
             screenshots = get_screenshots()
             tasks = get_pending_tasks()
 
-            daemon_status = "Running" if state.get("running") else "Not running"
-            listening = "Yes (Ctrl+Option+S)" if state.get("listening") else "No"
-
+            status = "Running" if state.get("running") else "Not running"
             text = f"""ScreenFix Status:
-- Daemon: {daemon_status}
-- Hotkey listening: {listening}
-- Save directory: {config.save_directory}
-- Tasks file: {config.tasks_file}
-- Screenshots captured: {len(screenshots)}
+- Daemon: {status}
+- Screenshots: {len(screenshots)}
 - Pending tasks: {len(tasks)}
 
-To start capturing, run: start_daemon"""
-
+Use Cmd+Ctrl+Shift+4 to capture (instant, no delay)"""
             return [TextContent(type="text", text=text)]
 
         elif name == "get_last_screenshot":
@@ -259,30 +231,21 @@ To start capturing, run: start_daemon"""
             screenshot = get_last_screenshot()
 
             if not screenshot:
-                return [TextContent(type="text", text="No screenshots found. Capture one with Ctrl+Option+S after starting the daemon.")]
+                return [TextContent(type="text", text="No screenshots found. Use Cmd+Ctrl+Shift+4 to capture.")]
 
-            result = []
-            result.append(TextContent(
-                type="text",
-                text=f"Last screenshot:\n- Path: {screenshot['path']}\n- Captured: {screenshot['modified']}"
-            ))
+            result = [TextContent(type="text", text=f"Screenshot: {screenshot['path']}")]
 
             if include_image and os.path.exists(screenshot["path"]):
                 with open(screenshot["path"], "rb") as f:
                     image_data = base64.standard_b64encode(f.read()).decode("utf-8")
-                result.append(ImageContent(
-                    type="image",
-                    data=image_data,
-                    mimeType="image/png",
-                ))
+                result.append(ImageContent(type="image", data=image_data, mimeType="image/png"))
 
-            # Also get related task if any
             tasks = get_tasks()
             for task in tasks:
                 if task.get("screenshot") == screenshot["path"]:
                     result.append(TextContent(
                         type="text",
-                        text=f"\nRelated task: {task['text']}\nStatus: {'Completed' if task['completed'] else 'Pending'}"
+                        text=f"\nTask: {task['text']}\nStatus: {'Done' if task['completed'] else 'Pending'}"
                     ))
                     break
 
@@ -297,8 +260,7 @@ To start capturing, run: start_daemon"""
 
             lines = ["Screenshots:"]
             for i, s in enumerate(screenshots, 1):
-                lines.append(f"{i}. {s['filename']} ({s['modified']})")
-                lines.append(f"   Path: {s['path']}")
+                lines.append(f"{i}. {s['filename']}")
 
             return [TextContent(type="text", text="\n".join(lines))]
 
@@ -307,34 +269,25 @@ To start capturing, run: start_daemon"""
             tasks = get_pending_tasks() if pending_only else get_tasks()
 
             if not tasks:
-                msg = "No pending tasks." if pending_only else "No tasks found."
-                return [TextContent(type="text", text=msg)]
+                return [TextContent(type="text", text="No tasks found.")]
 
             lines = ["Tasks:"]
             for i, task in enumerate(tasks, 1):
                 status = "[x]" if task["completed"] else "[ ]"
                 lines.append(f"{i}. {status} {task['text']}")
-                if task.get("screenshot"):
-                    lines.append(f"   Screenshot: {task['screenshot']}")
-                if task.get("added"):
-                    lines.append(f"   Added: {task['added']}")
 
             return [TextContent(type="text", text="\n".join(lines))]
 
         elif name == "complete_task":
             task_text = arguments.get("task_text", "")
-            if not task_text:
-                return [TextContent(type="text", text="Please provide the task text to mark complete.")]
-
             if mark_task_complete(task_text):
-                return [TextContent(type="text", text=f"Task marked as complete: {task_text}")]
-            else:
-                return [TextContent(type="text", text=f"Task not found: {task_text}")]
+                return [TextContent(type="text", text=f"Completed: {task_text}")]
+            return [TextContent(type="text", text=f"Task not found: {task_text}")]
 
         elif name == "read_screenshot":
             path = arguments.get("path", "")
             if not path or not os.path.exists(path):
-                return [TextContent(type="text", text=f"Screenshot not found: {path}")]
+                return [TextContent(type="text", text=f"Not found: {path}")]
 
             with open(path, "rb") as f:
                 image_data = base64.standard_b64encode(f.read()).decode("utf-8")
@@ -344,8 +297,7 @@ To start capturing, run: start_daemon"""
                 ImageContent(type="image", data=image_data, mimeType="image/png"),
             ]
 
-        else:
-            return [TextContent(type="text", text=f"Unknown tool: {name}")]
+        return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
     return server
 
@@ -358,7 +310,7 @@ async def run_server():
 
 
 def main():
-    """Main entry point for MCP server."""
+    """Main entry point."""
     asyncio.run(run_server())
 
 

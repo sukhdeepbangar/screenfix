@@ -4,11 +4,9 @@ import os
 import json
 from pathlib import Path
 
-# Default configuration - paths are relative to current working directory
 DEFAULT_CONFIG = {
     "save_directory": "./screenfix/screenshots",
     "tasks_file": "./screenfix/tasks/screenfix-tasks.md",
-    "hotkey": {"ctrl": True, "alt": True, "key": "s"},
 }
 
 CONFIG_DIR = Path.home() / ".config" / "screenfix"
@@ -57,11 +55,6 @@ class Config:
     def tasks_file(self, value: str):
         self._config["tasks_file"] = os.path.expanduser(value)
         self.save()
-
-    @property
-    def hotkey(self) -> dict:
-        """Hotkey configuration."""
-        return self._config["hotkey"]
 
     def ensure_directories(self):
         """Ensure save and tasks directories exist."""

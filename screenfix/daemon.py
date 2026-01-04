@@ -1,15 +1,11 @@
 #!/usr/bin/env python3
 """
-ScreenFix Daemon - Standalone hotkey listener and screen capture.
+ScreenFix Daemon - Clipboard watcher for instant screenshot capture.
 
-This runs separately from the MCP server and handles:
-- Global hotkey listening (Ctrl+Option+S)
-- Screen capture
-- Annotation window UI
-- Saving screenshots and tasks
+Watches the clipboard for new images and shows annotation window instantly.
+Use Cmd+Ctrl+Shift+4 to capture screenshot to clipboard (no preview delay).
 
 Run with: python -m screenfix.daemon
-Or: screenfix-daemon
 """
 
 import json
@@ -20,19 +16,14 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Import AppKit first to ensure proper initialization
 from AppKit import (
     NSApplication,
     NSApplicationActivationPolicyAccessory,
-    NSApplicationActivationPolicyRegular,
     NSEventMaskAny,
 )
-from Foundation import NSRunLoop, NSDefaultRunLoopMode, NSDate
+from Foundation import NSDate, NSDefaultRunLoopMode
 
 from .config import config
-from .capture import capture_screen_region, save_screenshot, cleanup_temp_file
-from .task_tracker import add_task
-from .hotkey import HotkeyListener
 
 
 # State file for communication with MCP server
@@ -45,7 +36,6 @@ def update_state(listening: bool = None, last_capture: str = None):
 
     state = {"pid": os.getpid(), "listening": False}
 
-    # Read existing state
     if STATE_FILE.exists():
         try:
             with open(STATE_FILE, "r") as f:
@@ -74,27 +64,18 @@ def clear_state():
 
 
 class ScreenFixDaemon:
-    """Standalone daemon for hotkey listening and screen capture."""
+    """Daemon that watches clipboard for screenshots."""
 
     def __init__(self):
         self._running = False
-        self._hotkey_listener = None
+        self._clipboard_watcher = None
         self._app = None
         self._main_thread_queue = queue.Queue()
 
-    def _on_hotkey(self):
-        """Called when the hotkey is pressed (from background thread)."""
-        print("Hotkey detected! Capturing screen...", file=sys.stderr)
-
-        # Capture screen region
-        temp_path = capture_screen_region()
-
-        if temp_path:
-            print(f"Captured to: {temp_path}", file=sys.stderr)
-            # Queue the annotation window to be shown on main thread
-            self._main_thread_queue.put(temp_path)
-        else:
-            print("Capture cancelled", file=sys.stderr)
+    def _on_clipboard_image(self, image_path: str):
+        """Called when a new image is detected on clipboard."""
+        print(f"Screenshot detected: {image_path}", file=sys.stderr)
+        self._main_thread_queue.put(image_path)
 
     def _process_main_thread_queue(self):
         """Process any pending work on the main thread."""
@@ -108,16 +89,12 @@ class ScreenFixDaemon:
     def _show_annotation(self, image_path: str):
         """Show the annotation window. Must be called from main thread."""
         from .annotation_window import show_annotation_window
-
-        # Switch to Regular policy to allow user interaction with the window
-        self._app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
-        self._app.activateIgnoringOtherApps_(True)
         show_annotation_window(image_path)
 
     def _setup_signal_handlers(self):
         """Set up signal handlers for graceful shutdown."""
         def handle_signal(signum, frame):
-            print(f"\nReceived signal {signum}, shutting down...", file=sys.stderr)
+            print(f"\nShutting down...", file=sys.stderr)
             self.stop()
 
         signal.signal(signal.SIGINT, handle_signal)
@@ -129,8 +106,6 @@ class ScreenFixDaemon:
             return
 
         self._running = True
-
-        # Ensure directories exist
         config.ensure_directories()
 
         # Initialize NSApplication for UI
@@ -138,29 +113,25 @@ class ScreenFixDaemon:
         self._app.setActivationPolicy_(NSApplicationActivationPolicyAccessory)
         self._app.finishLaunching()
 
-        # Set up signal handlers
         self._setup_signal_handlers()
 
-        # Start hotkey listener
-        print("Starting hotkey listener (Ctrl+Option+S)...", file=sys.stderr)
+        print("ScreenFix daemon started", file=sys.stderr)
         print(f"Screenshots will be saved to: {config.save_directory}", file=sys.stderr)
         print(f"Tasks will be saved to: {config.tasks_file}", file=sys.stderr)
-        print("\nIMPORTANT: Make sure Terminal has Accessibility permission in:", file=sys.stderr)
-        print("System Settings > Privacy & Security > Accessibility", file=sys.stderr)
-        print("\nPress Ctrl+C to stop.\n", file=sys.stderr)
+        print("\nUse Cmd+Ctrl+Shift+4 to capture (INSTANT, no delay!)", file=sys.stderr)
+        print("Press Ctrl+C to stop.\n", file=sys.stderr)
 
-        self._hotkey_listener = HotkeyListener(self._on_hotkey)
-        self._hotkey_listener.start()
+        # Start clipboard watcher
+        from .clipboard_watcher import ClipboardWatcher
+        self._clipboard_watcher = ClipboardWatcher(self._on_clipboard_image)
+        self._clipboard_watcher.start()
 
-        # Update state
         update_state(listening=True)
 
-        # Run the main loop for UI events
+        # Run the main loop
         while self._running:
-            # Process any pending annotation windows from background threads
             self._process_main_thread_queue()
 
-            # Process all pending UI events
             while True:
                 event = self._app.nextEventMatchingMask_untilDate_inMode_dequeue_(
                     NSEventMaskAny,
@@ -176,13 +147,12 @@ class ScreenFixDaemon:
         """Stop the daemon."""
         self._running = False
 
-        if self._hotkey_listener:
-            self._hotkey_listener.stop()
-            self._hotkey_listener = None
+        if self._clipboard_watcher:
+            self._clipboard_watcher.stop()
+            self._clipboard_watcher = None
 
         clear_state()
 
-        # Terminate the app
         if self._app:
             self._app.terminate_(None)
 
@@ -198,12 +168,10 @@ def is_daemon_running() -> bool:
 
         pid = state.get("pid")
         if pid:
-            # Check if process is running
             try:
                 os.kill(pid, 0)
                 return True
             except OSError:
-                # Process not running, clean up stale state
                 clear_state()
                 return False
     except (json.JSONDecodeError, IOError):

@@ -1,8 +1,8 @@
 ---
 allowed-tools: mcp__screenfix__start_daemon, mcp__screenfix__get_status
-description: Start the ScreenFix hotkey daemon
+description: Start the ScreenFix daemon
 ---
 
-Start the ScreenFix daemon using `mcp__screenfix__start_daemon`. This opens a Terminal window with the daemon running. After starting, check the status with `mcp__screenfix__get_status`.
+Start the ScreenFix daemon using `mcp__screenfix__start_daemon`. After starting, check the status.
 
-Once running, press **Ctrl+Option+S** anywhere to capture a screen region.
+Once running, use **Cmd+Ctrl+Shift+4** to capture screenshots instantly (no delay).
