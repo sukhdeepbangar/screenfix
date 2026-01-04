@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "screenfix": {
+      "type": "stdio",
+      "command": "python3",
+      "args": ["-m", "screenfix.mcp_server"]
+    }
+  }
+}

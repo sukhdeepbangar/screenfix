@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "screenfix"
+version = "0.1.0"
+description = "Screen snipping tool integrated with Claude Code via MCP"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0.0",
+    "pynput>=1.7.6",
+    "pyobjc-core>=10.0",
+    "pyobjc-framework-Cocoa>=10.0",
+    "pyobjc-framework-Quartz>=10.0",
+    "Pillow>=10.0.0",
+]
+
+[project.scripts]
+screenfix-daemon = "screenfix.daemon:main"
+screenfix-mcp = "screenfix.mcp_server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
