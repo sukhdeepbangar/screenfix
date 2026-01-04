@@ -4,37 +4,40 @@ Capture screenshots instantly and create tasks for Claude Code.
 
 ## Quick Start
 
-1. **Start the daemon**: Ask Claude to `start_daemon`
+1. **Install**: Run in your project directory:
+   ```bash
+   npx create-screenfix
+   ```
 
-2. **Capture**: Press **Cmd+Ctrl+Shift+4** and select an area
-   - Instant capture, no preview delay!
+2. **Restart Claude Code** to load the MCP server
 
-3. **Annotate**: Add instructions in the popup and click Save
+3. **Start the daemon**: Run `/screenfix-start`
 
-4. **Review**: Ask Claude to check your last screenshot
+4. **Capture**: Press **Cmd+Ctrl+Shift+4** and select an area
 
-## Installation
+5. **Annotate**: Add instructions in the popup and click Save
+
+6. **Execute**: Run `/screenfix-tasks-next` or `/screenfix-tasks-yolo`
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `/screenfix-start` | Start the screenshot daemon |
+| `/screenfix-stop` | Stop the daemon |
+| `/screenfix-status` | Check status |
+| `/screenfix-list-tasks` | View all tasks |
+| `/screenfix-tasks-next` | Execute next pending task |
+| `/screenfix-tasks-yolo` | Execute all pending tasks |
+
+## CLI Commands
 
 ```bash
-pip install -e /path/to/screenfix
+npx create-screenfix          # Install ScreenFix
+npx create-screenfix doctor   # Diagnose issues
+npx create-screenfix update   # Update to latest
+npx create-screenfix uninstall # Remove from project
 ```
-
-Copy `.mcp.json` to your project:
-```bash
-cp /path/to/screenfix/.mcp.json ./
-```
-
-## MCP Tools
-
-| Tool | Description |
-|------|-------------|
-| `start_daemon` | Start the screenshot daemon |
-| `stop_daemon` | Stop the daemon |
-| `get_status` | Check status |
-| `get_last_screenshot` | Get most recent screenshot + task |
-| `list_screenshots` | List all screenshots |
-| `get_tasks` | Get tasks |
-| `complete_task` | Mark task as done |
 
 ## File Locations
 
@@ -44,10 +47,10 @@ cp /path/to/screenfix/.mcp.json ./
 ## How It Works
 
 ```
-Cmd+Ctrl+Shift+4  →  Clipboard  →  Daemon detects  →  Annotation popup
-                                                              ↓
+Cmd+Ctrl+Shift+4  ->  Clipboard  ->  Daemon detects  ->  Annotation popup
+                                                              |
                                                     Save screenshot + task
-                                                              ↓
+                                                              |
                                                     Claude reads via MCP
 ```
 

@@ -1,0 +1,35 @@
+{
+  "name": "create-screenfix",
+  "version": "0.1.1",
+  "description": "Screenshot capture tool for Claude Code via MCP",
+  "bin": {
+    "create-screenfix": "./bin/create-screenfix.js"
+  },
+  "keywords": [
+    "claude-code",
+    "mcp",
+    "screenshot",
+    "screenfix",
+    "claude"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "os": [
+    "darwin"
+  ],
+  "files": [
+    "bin/",
+    "lib/",
+    "templates/",
+    "python/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/screenfix.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^11.0.0"
+  }
+}
